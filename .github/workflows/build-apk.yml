@@ -9,18 +9,29 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    container: cirrusci/flutter:3.38.5  # Your required version
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.38.5'  # Your required version
+        channel: 'stable'
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
     
     - name: Get dependencies
       run: flutter pub get
     
     - name: Fix localization issue
       run: |
-        # Fix the ARB file problem that's blocking builds
+        # Fix the ARB file problem
         find . -name "*.arb" -type f -exec sed -i \
           's/{dateString, date, }/{dateString, date, short}/g' {} \; 2>/dev/null || true
     
@@ -37,12 +48,23 @@ jobs:
 
   build_apk:
     runs-on: ubuntu-latest
-    container: cirrusci/flutter:3.38.5  # Your required version
     needs: test
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.38.5'
+        channel: 'stable'
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
     
     - name: Get dependencies
       run: flutter pub get
@@ -60,6 +82,5 @@ jobs:
     - name: Show build info
       run: |
         echo "=== Build Complete ==="
-        ls -la build/app/outputs/flutter-apk/
-        echo "APK files created:"
-        find build/app/outputs/flutter-apk -name "*.apk" -type f
+        echo "APK files:"
+        ls -la build/app/outputs/flutter-apk/*.apk
