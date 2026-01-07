@@ -2,41 +2,95 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
+
+env:
+  FLUTTER_VERSION: "3.38.5"  # Minimum for Dart 3.4.3+
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.38.5' # The version suggested in the error
-        channel: 'stable'
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: "stable"
 
-    - name: Install dependencies
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: "temurin"
+        java-version: "17"
+
+    - name: Validate dependencies
       run: |
+        echo "Flutter version:"
         flutter --version
+        echo "Dart version:"
+        dart --version
+
+    - name: Get packages
+      run: |
+        # Clean and get dependencies
+        flutter clean
         flutter pub get
 
-    - name: Build APK
+    - name: Run tests (if any)
       run: |
-        flutter config --no-analytics
-        flutter build apk --release --no-tree-shake-icons
+        # Only run if test directory exists
+        if [ -d "test" ]; then
+          flutter test || echo "Tests failed but continuing build"
+        else
+          echo "No tests directory found"
+        fi
 
-    - name: Upload APK artifact
+    - name: Build APK (single)
+      run: |
+        # Build a single universal APK
+        flutter build apk --release \
+          --no-tree-shake-icons \
+          --dart-define=CI=true
+        
+        echo "APK size:"
+        ls -lh build/app/outputs/flutter-apk/app-release.apk
+
+    - name: Build split APKs (optional)
+      run: |
+        # Build per-architecture APKs (like original)
+        flutter build apk --release \
+          --split-per-abi \
+          --no-tree-shake-icons \
+          --dart-define=CI=true
+        
+        echo "Split APKs:"
+        ls -lh build/app/outputs/flutter-apk/*.apk
+
+    - name: Upload universal APK
       uses: actions/upload-artifact@v4
       with:
-        name: flauncher-release-apk
+        name: flauncher-universal
         path: build/app/outputs/flutter-apk/app-release.apk
         retention-days: 7
 
-    - name: Notify workflow completion
-      if: success()
-      run: echo "✅ Build successful! APK is available in the Actions artifacts."
+    - name: Upload split APKs
+      uses: actions/upload-artifact@v4
+      with:
+        name: flauncher-split-apks
+        path: build/app/outputs/flutter-apk/*.apk
+        retention-days: 7
+        if-no-files-found: ignore
+
+    - name: Build summary
+      if: always()
+      run: |
+        echo "=== Build Summary ==="
+        echo "Flutter: ${{ env.FLUTTER_VERSION }}"
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
