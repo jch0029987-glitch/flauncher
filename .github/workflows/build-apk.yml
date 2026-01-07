@@ -1,0 +1,41 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v4
+      with:
+        flutter-version: '3.19.x' # Compatible stable version
+        channel: 'stable'
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build APK
+      run: |
+        flutter config --no-analytics
+        flutter build apk --release --no-tree-shake-icons
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: flauncher-release-apk
+        path: build/app/outputs/flutter-apk/app-release.apk
+        retention-days: 7
+
+    # Optional: Add a success notification
+    - name: Notify workflow completion
+      if: success()
+      run: echo "✅ Build successful! APK is available in the Actions artifacts."
