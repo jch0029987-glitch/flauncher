@@ -17,11 +17,13 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.19.5' # Specific stable version that works
+        flutter-version: '3.38.5' # The version suggested in the error
         channel: 'stable'
 
     - name: Install dependencies
-      run: flutter pub get
+      run: |
+        flutter --version
+        flutter pub get
 
     - name: Build APK
       run: |
